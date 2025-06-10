@@ -12,7 +12,7 @@ export const useItemSearch = () => {
       keys: [
         { name: 'name', weight: 1.0 }
       ],
-      threshold: 0.4, // More lenient threshold for better matching
+      threshold: 0.5, // More lenient threshold
       includeScore: true,
       ignoreLocation: true,
       findAllMatches: true,
@@ -25,68 +25,107 @@ export const useItemSearch = () => {
 
     // Apply text search
     if (searchTerm.trim()) {
+      const normalizedSearch = searchTerm.toLowerCase().trim();
+      
       // First try exact fuzzy search
-      const results = fuse.search(searchTerm);
-      let searchResults = results.map(result => result.item);
+      const fuseResults = fuse.search(searchTerm);
+      let searchResults = fuseResults.map(result => result.item);
       
-      // If no results or very few results, try alternative search strategies
-      if (searchResults.length < 3) {
-        const normalizedSearch = searchTerm.toLowerCase().trim();
+      // Enhanced search strategies for better matching
+      const enhancedMatches = inventoryItems.filter(item => {
+        const itemName = item.name.toLowerCase();
         
-        // Try partial word matching for compound terms
-        const partialMatches = inventoryItems.filter(item => {
-          const itemName = item.name.toLowerCase();
-          
-          // Split search term into words
-          const searchWords = normalizedSearch.split(/\s+/);
-          
-          // Check if all search words are found in the item name
-          const allWordsMatch = searchWords.every(word => {
-            // Handle common variations
-            let searchWord = word;
-            if (word === 'king' && normalizedSearch.includes('size')) {
-              searchWord = 'kingsize';
-            }
-            if (word === 'queen' && normalizedSearch.includes('size')) {
-              searchWord = 'queensize';
-            }
-            if (word === 'super' && normalizedSearch.includes('king')) {
-              searchWord = 'superking';
-            }
-            
-            return itemName.includes(searchWord) || 
-                   itemName.includes(word) ||
-                   // Handle size variations
-                   (word === 'size' && (itemName.includes('kingsize') || itemName.includes('queensize') || itemName.includes('superking')));
-          });
-          
-          // Also check for direct substring match
-          const directMatch = itemName.includes(normalizedSearch);
-          
-          // Check for common bed size patterns
-          const bedSizeMatch = (
-            (normalizedSearch.includes('king') && itemName.includes('kingsize')) ||
-            (normalizedSearch.includes('queen') && itemName.includes('queensize')) ||
-            (normalizedSearch.includes('super king') && itemName.includes('superking')) ||
-            (normalizedSearch.includes('single') && itemName.includes('single')) ||
-            (normalizedSearch.includes('double') && itemName.includes('double'))
-          );
-          
-          return allWordsMatch || directMatch || bedSizeMatch;
-        });
+        // Direct substring match
+        if (itemName.includes(normalizedSearch)) {
+          return true;
+        }
         
-        // Combine and deduplicate results
-        const combinedResults = [...searchResults];
-        partialMatches.forEach(item => {
-          if (!combinedResults.find(existing => existing.id === item.id)) {
-            combinedResults.push(item);
+        // Handle bed size variations specifically
+        const bedSizeVariations = {
+          'king size': ['kingsize', 'king'],
+          'kingsize': ['king size', 'king'],
+          'king': ['kingsize', 'king size'],
+          'queen size': ['queensize', 'queen'],
+          'queensize': ['queen size', 'queen'],
+          'queen': ['queensize', 'queen size'],
+          'super king': ['superking', 'super kingsize'],
+          'superking': ['super king', 'super kingsize'],
+          'single': ['single bed'],
+          'double': ['double bed']
+        };
+        
+        // Check bed size variations
+        for (const [searchVariant, itemVariants] of Object.entries(bedSizeVariations)) {
+          if (normalizedSearch.includes(searchVariant)) {
+            for (const variant of itemVariants) {
+              if (itemName.includes(variant)) {
+                return true;
+              }
+            }
           }
+        }
+        
+        // Split search into words and check if all words match
+        const searchWords = normalizedSearch.split(/\s+/);
+        const allWordsMatch = searchWords.every(word => {
+          // Handle size variations
+          if (word === 'king' && (itemName.includes('kingsize') || itemName.includes('king'))) {
+            return true;
+          }
+          if (word === 'size' && (itemName.includes('kingsize') || itemName.includes('queensize') || itemName.includes('superking'))) {
+            return true;
+          }
+          if (word === 'queen' && (itemName.includes('queensize') || itemName.includes('queen'))) {
+            return true;
+          }
+          if (word === 'super' && itemName.includes('superking')) {
+            return true;
+          }
+          
+          return itemName.includes(word);
         });
         
-        searchResults = combinedResults;
-      }
+        // Partial word matching - check if search term appears in any part of the item name
+        const partialMatch = searchWords.some(word => {
+          if (word.length >= 3) { // Only for words 3+ characters
+            return itemName.includes(word);
+          }
+          return false;
+        });
+        
+        return allWordsMatch || partialMatch;
+      });
       
-      items = searchResults;
+      // Combine and deduplicate results, prioritizing exact matches
+      const combinedResults = [...searchResults];
+      enhancedMatches.forEach(item => {
+        if (!combinedResults.find(existing => existing.id === item.id)) {
+          combinedResults.push(item);
+        }
+      });
+      
+      // Sort results by relevance (exact matches first, then partial matches)
+      combinedResults.sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        
+        // Exact match gets highest priority
+        const aExact = aName === normalizedSearch;
+        const bExact = bName === normalizedSearch;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        
+        // Contains full search term gets second priority
+        const aContains = aName.includes(normalizedSearch);
+        const bContains = bName.includes(normalizedSearch);
+        if (aContains && !bContains) return -1;
+        if (!aContains && bContains) return 1;
+        
+        // Shorter names get priority (more specific)
+        return a.name.length - b.name.length;
+      });
+      
+      items = combinedResults;
     }
 
     // Apply filters
