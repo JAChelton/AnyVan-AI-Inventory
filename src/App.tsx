@@ -14,6 +14,7 @@ import { useInventory } from './hooks/useInventory';
 import { useAIInventory } from './hooks/useAIInventory';
 import { InventoryItem, InventoryRecord } from './types/inventory';
 import { AIGeneratedItem } from './services/aiInventoryService';
+import { inventoryItems } from './data/inventoryItems';
 
 function App() {
   const [activeTab, setActiveTab] = useState<'search' | 'inventory' | 'ai'>('search');
@@ -28,6 +29,7 @@ function App() {
     updateFilters,
     clearFilters,
     filteredItems,
+    suggestions,
     hasGoodResults
   } = useItemSearch();
 
@@ -69,8 +71,12 @@ function App() {
     setSelectedItem(inventoryItem);
   };
 
+  const handleSuggestionClick = (suggestion: string) => {
+    setSearchTerm(suggestion);
+  };
+
   // Show suggestion to use AI search when no results found in database
-  const showAISuggestion = searchTerm.trim() && filteredItems.length === 0 && !hasGoodResults;
+  const showAISuggestion = searchTerm.trim() && filteredItems.length === 0 && !hasGoodResults && suggestions.length === 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -141,6 +147,24 @@ function App() {
               </p>
             </div>
 
+            {/* Show "Did you mean?" suggestions only when there are relevant suggestions */}
+            {suggestions.length > 0 && filteredItems.length === 0 && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800 mb-2">Did you mean?</p>
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm hover:bg-blue-200 transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredItems.map((item) => (
                 <ItemCard
@@ -170,7 +194,7 @@ function App() {
               </div>
             )}
 
-            {filteredItems.length === 0 && !showAISuggestion && (searchTerm || hasActiveFilters) && (
+            {filteredItems.length === 0 && !showAISuggestion && suggestions.length === 0 && (searchTerm || hasActiveFilters) && (
               <div className="text-center py-12">
                 <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No items found</h3>

@@ -12,7 +12,7 @@ export const useItemSearch = () => {
       keys: [
         { name: 'name', weight: 1.0 }
       ],
-      threshold: 0.4, // More strict threshold for better matches
+      threshold: 0.4,
       includeScore: true,
       ignoreLocation: true,
       findAllMatches: true,
@@ -20,15 +20,15 @@ export const useItemSearch = () => {
     });
   }, []);
 
-  const filteredItems = useMemo(() => {
+  const { filteredItems, suggestions } = useMemo(() => {
     let items = inventoryItems;
+    let didYouMeanSuggestions: string[] = [];
 
     // Apply text search
     if (searchTerm.trim()) {
       const normalizedSearch = searchTerm.toLowerCase().trim();
       console.log('🔍 Searching database for:', normalizedSearch);
       
-      // Enhanced search with multiple strategies
       const searchResults = new Set<InventoryItem>();
       
       // Strategy 1: Exact name matching (highest priority)
@@ -157,7 +157,6 @@ export const useItemSearch = () => {
             
             let matchCount = 0;
             searchWords.forEach(searchWord => {
-              // Check for exact word matches or partial matches
               const hasMatch = itemWords.some(itemWord => {
                 return itemWord.includes(searchWord) || searchWord.includes(itemWord);
               });
@@ -167,7 +166,6 @@ export const useItemSearch = () => {
               }
             });
             
-            // If at least 60% of search words match, include the item
             const matchRatio = matchCount / searchWords.length;
             if (matchRatio >= 0.6) {
               console.log('✅ Word match found:', item.name, 'match ratio:', matchRatio);
@@ -177,36 +175,58 @@ export const useItemSearch = () => {
         }
       }
       
-      // Strategy 5: Fuzzy search as fallback (only if no other matches)
+      // Strategy 5: Generate "Did you mean?" suggestions only if no matches found
       if (searchResults.size === 0) {
-        console.log('🔍 No direct matches, trying fuzzy search...');
-        const fuseResults = fuse.search(searchTerm);
-        console.log('Fuzzy search results:', fuseResults);
+        console.log('🔍 No matches found, generating suggestions...');
         
-        fuseResults.forEach(result => {
-          if (result.score && result.score < 0.6) { // Strict fuzzy matching
-            console.log('✅ Fuzzy match found:', result.item.name, 'score:', result.score);
-            searchResults.add(result.item);
-          }
-        });
-      }
-      
-      // Strategy 6: Partial matching for single words (very lenient, last resort)
-      if (searchResults.size === 0 && normalizedSearch.length >= 3) {
-        console.log('🔍 Trying partial matching...');
+        // Only suggest items that are actually similar to the search term
+        const relevantSuggestions = new Set<string>();
+        
+        // Check for partial word matches that could be suggestions
+        const searchWords = normalizedSearch.split(/\s+/).filter(word => word.length >= 2);
+        
         inventoryItems.forEach(item => {
           const itemName = item.name.toLowerCase();
-          // Check if any word in the item name contains the search word
           const itemWords = itemName.split(/\s+/);
-          const hasPartialMatch = itemWords.some(word => 
-            word.includes(normalizedSearch) || normalizedSearch.includes(word)
-          );
           
-          if (hasPartialMatch) {
-            console.log('✅ Partial match found:', item.name);
-            searchResults.add(item);
+          // Check if any search word partially matches any item word
+          let hasRelevantMatch = false;
+          
+          searchWords.forEach(searchWord => {
+            itemWords.forEach(itemWord => {
+              // Check for partial matches (at least 3 characters in common)
+              if (searchWord.length >= 3 && itemWord.length >= 3) {
+                if (itemWord.includes(searchWord.substring(0, 3)) || 
+                    searchWord.includes(itemWord.substring(0, 3))) {
+                  hasRelevantMatch = true;
+                }
+              }
+              
+              // Check for similar starting letters
+              if (searchWord.length >= 2 && itemWord.length >= 2) {
+                if (searchWord.substring(0, 2) === itemWord.substring(0, 2)) {
+                  hasRelevantMatch = true;
+                }
+              }
+            });
+          });
+          
+          if (hasRelevantMatch) {
+            relevantSuggestions.add(item.name);
           }
         });
+        
+        // Also use fuzzy search for suggestions, but only if they're actually relevant
+        const fuseResults = fuse.search(searchTerm);
+        fuseResults.forEach(result => {
+          if (result.score && result.score < 0.7) { // More lenient for suggestions
+            relevantSuggestions.add(result.item.name);
+          }
+        });
+        
+        // Convert to array and limit to 3 most relevant suggestions
+        didYouMeanSuggestions = Array.from(relevantSuggestions).slice(0, 3);
+        console.log('💡 Generated suggestions:', didYouMeanSuggestions);
       }
       
       console.log(`📊 Database search complete: ${searchResults.size} matches found`);
@@ -214,30 +234,26 @@ export const useItemSearch = () => {
       // Convert Set back to Array and sort by relevance
       const combinedResults = Array.from(searchResults);
       
-      // Sort results by relevance (exact matches first, then partial matches)
+      // Sort results by relevance
       combinedResults.sort((a, b) => {
         const aName = a.name.toLowerCase();
         const bName = b.name.toLowerCase();
         
-        // Exact match gets highest priority
         const aExact = aName === normalizedSearch;
         const bExact = bName === normalizedSearch;
         if (aExact && !bExact) return -1;
         if (!aExact && bExact) return 1;
         
-        // Contains full search term gets second priority
         const aContains = aName.includes(normalizedSearch);
         const bContains = bName.includes(normalizedSearch);
         if (aContains && !bContains) return -1;
         if (!aContains && bContains) return 1;
         
-        // Starts with search term gets third priority
         const aStarts = aName.startsWith(normalizedSearch);
         const bStarts = bName.startsWith(normalizedSearch);
         if (aStarts && !bStarts) return -1;
         if (!aStarts && bStarts) return 1;
         
-        // Shorter names get priority (more specific)
         return a.name.length - b.name.length;
       });
       
@@ -258,7 +274,10 @@ export const useItemSearch = () => {
       items = items.filter(item => item.volume <= filters.maxVolume!);
     }
 
-    return items.slice(0, 50); // Limit results for performance
+    return {
+      filteredItems: items.slice(0, 50),
+      suggestions: didYouMeanSuggestions
+    };
   }, [searchTerm, filters, fuse]);
 
   const updateFilters = (newFilters: Partial<SearchFilters>) => {
@@ -270,7 +289,6 @@ export const useItemSearch = () => {
     setSearchTerm('');
   };
 
-  // Helper function to check if search has good results
   const hasGoodResults = useMemo(() => {
     return filteredItems.length > 0;
   }, [filteredItems]);
@@ -282,6 +300,7 @@ export const useItemSearch = () => {
     updateFilters,
     clearFilters,
     filteredItems,
+    suggestions,
     hasGoodResults
   };
 };
