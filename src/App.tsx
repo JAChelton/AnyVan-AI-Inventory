@@ -7,12 +7,16 @@ import { AddItemModal } from './components/AddItemModal';
 import { EditItemModal } from './components/EditItemModal';
 import { InventoryList } from './components/InventoryList';
 import { StatsCard } from './components/StatsCard';
+import { AIItemSearch } from './components/AIItemSearch';
+import { AIItemCard } from './components/AIItemCard';
 import { useItemSearch } from './hooks/useItemSearch';
 import { useInventory } from './hooks/useInventory';
+import { useAIInventory } from './hooks/useAIInventory';
 import { InventoryItem, InventoryRecord } from './types/inventory';
+import { AIGeneratedItem } from './services/aiInventoryService';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'search' | 'inventory'>('search');
+  const [activeTab, setActiveTab] = useState<'search' | 'inventory' | 'ai'>('search');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [editingRecord, setEditingRecord] = useState<InventoryRecord | null>(null);
@@ -36,6 +40,14 @@ function App() {
     getTotalWeight
   } = useInventory();
 
+  const {
+    aiItems,
+    addAIItem,
+    removeAIItem,
+    convertToInventoryItem,
+    getAllItems
+  } = useAIInventory();
+
   const hasActiveFilters = Object.values(filters).some(value => value !== undefined);
 
   const formatVolume = (volume: number) => {
@@ -47,6 +59,15 @@ function App() {
     return `${volume.toLocaleString()} cm³`;
   };
 
+  const handleAIItemGenerated = (aiItem: AIGeneratedItem) => {
+    addAIItem(aiItem);
+  };
+
+  const handleAddAIItemToInventory = (aiItem: AIGeneratedItem) => {
+    const inventoryItem = convertToInventoryItem(aiItem);
+    setSelectedItem(inventoryItem);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b border-gray-200">
@@ -54,7 +75,7 @@ function App() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <Package className="w-8 h-8 text-blue-600" />
-              <h1 className="text-xl font-bold text-gray-900">Inventory Manager</h1>
+              <h1 className="text-xl font-bold text-gray-900">AI Enhanced Inventory Manager</h1>
             </div>
             
             <nav className="flex space-x-1">
@@ -67,6 +88,16 @@ function App() {
                 }`}
               >
                 Search Items
+              </button>
+              <button
+                onClick={() => setActiveTab('ai')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === 'ai'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                AI Search ({aiItems.length})
               </button>
               <button
                 onClick={() => setActiveTab('inventory')}
@@ -121,6 +152,41 @@ function App() {
                 <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No items found</h3>
                 <p className="text-gray-500">Try adjusting your search terms or filters.</p>
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'ai' ? (
+          <div>
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">AI-Enhanced Item Search</h2>
+              <p className="text-gray-600">Describe any item and let AI find accurate specifications from multiple sources.</p>
+            </div>
+
+            <AIItemSearch onItemGenerated={handleAIItemGenerated} />
+
+            {aiItems.length > 0 && (
+              <>
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Generated Items ({aiItems.length})</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {aiItems.map((item) => (
+                      <AIItemCard
+                        key={item.id}
+                        item={item}
+                        onAddToInventory={handleAddAIItemToInventory}
+                        onRemove={removeAIItem}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {aiItems.length === 0 && (
+              <div className="text-center py-12">
+                <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No AI items generated yet</h3>
+                <p className="text-gray-500">Use the search above to generate items with AI-powered web scraping.</p>
               </div>
             )}
           </div>
