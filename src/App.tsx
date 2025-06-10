@@ -27,7 +27,8 @@ function App() {
     filters,
     updateFilters,
     clearFilters,
-    filteredItems
+    filteredItems,
+    hasGoodResults
   } = useItemSearch();
 
   const {
@@ -67,6 +68,9 @@ function App() {
     const inventoryItem = convertToInventoryItem(aiItem);
     setSelectedItem(inventoryItem);
   };
+
+  // Show suggestion to use AI search when no results found
+  const showAISuggestion = searchTerm.trim() && filteredItems.length === 0 && !hasGoodResults;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -147,7 +151,26 @@ function App() {
               ))}
             </div>
 
-            {filteredItems.length === 0 && (searchTerm || hasActiveFilters) && (
+            {showAISuggestion && (
+              <div className="text-center py-12">
+                <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No items found in database</h3>
+                <p className="text-gray-500 mb-4">
+                  "{searchTerm}" wasn't found in our pre-loaded database.
+                </p>
+                <button
+                  onClick={() => setActiveTab('ai')}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Try AI Search Instead
+                </button>
+                <p className="text-sm text-gray-400 mt-2">
+                  AI Search can find any item using web scraping and intelligent estimation
+                </p>
+              </div>
+            )}
+
+            {filteredItems.length === 0 && !showAISuggestion && (searchTerm || hasActiveFilters) && (
               <div className="text-center py-12">
                 <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No items found</h3>
