@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Package, Ruler, Weight } from 'lucide-react';
+import { Plus, Package, Ruler, Copyright as Weight } from 'lucide-react';
 import { InventoryItem } from '../types/inventory';
 
 interface ItemCardProps {

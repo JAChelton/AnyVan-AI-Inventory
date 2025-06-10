@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, Weight, Ruler, Hash } from 'lucide-react';
+import { Package, Copyright as Weight, Ruler, Hash } from 'lucide-react';
 import { SearchBar } from './components/SearchBar';
 import { FilterPanel } from './components/FilterPanel';
 import { ItemCard } from './components/ItemCard';
