@@ -69,7 +69,7 @@ function App() {
     setSelectedItem(inventoryItem);
   };
 
-  // Show suggestion to use AI search when no results found
+  // Show suggestion to use AI search when no results found in database
   const showAISuggestion = searchTerm.trim() && filteredItems.length === 0 && !hasGoodResults;
 
   return (
@@ -91,7 +91,7 @@ function App() {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Search Items
+                Database Search
               </button>
               <button
                 onClick={() => setActiveTab('ai')}
@@ -122,8 +122,8 @@ function App() {
         {activeTab === 'search' ? (
           <div>
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Search Items</h2>
-              <p className="text-gray-600">Find items from our comprehensive database to add to your inventory.</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Database Search</h2>
+              <p className="text-gray-600">Search our comprehensive database of {inventoryItems.length} pre-loaded items with accurate specifications.</p>
             </div>
 
             <SearchBar
@@ -136,7 +136,7 @@ function App() {
 
             <div className="mb-6">
               <p className="text-sm text-gray-600">
-                Showing {filteredItems.length} items
+                Showing {filteredItems.length} items from database
                 {searchTerm && ` for "${searchTerm}"`}
               </p>
             </div>
@@ -156,7 +156,7 @@ function App() {
                 <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No items found in database</h3>
                 <p className="text-gray-500 mb-4">
-                  "{searchTerm}" wasn't found in our pre-loaded database.
+                  "{searchTerm}" wasn't found in our pre-loaded database of {inventoryItems.length} items.
                 </p>
                 <button
                   onClick={() => setActiveTab('ai')}

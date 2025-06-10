@@ -12,11 +12,11 @@ export const useItemSearch = () => {
       keys: [
         { name: 'name', weight: 1.0 }
       ],
-      threshold: 0.6, // More lenient threshold
+      threshold: 0.4, // More strict threshold for better matches
       includeScore: true,
       ignoreLocation: true,
       findAllMatches: true,
-      minMatchCharLength: 1
+      minMatchCharLength: 2
     });
   }, []);
 
@@ -26,139 +26,190 @@ export const useItemSearch = () => {
     // Apply text search
     if (searchTerm.trim()) {
       const normalizedSearch = searchTerm.toLowerCase().trim();
-      console.log('Searching for:', normalizedSearch);
+      console.log('🔍 Searching database for:', normalizedSearch);
       
       // Enhanced search with multiple strategies
       const searchResults = new Set<InventoryItem>();
       
-      // Strategy 1: Direct substring matching (case insensitive)
+      // Strategy 1: Exact name matching (highest priority)
       inventoryItems.forEach(item => {
         const itemName = item.name.toLowerCase();
-        console.log('Checking item:', itemName, 'against search:', normalizedSearch);
-        
-        if (itemName.includes(normalizedSearch)) {
-          console.log('✅ Direct match found:', item.name);
+        if (itemName === normalizedSearch) {
+          console.log('✅ Exact match found:', item.name);
           searchResults.add(item);
         }
       });
       
-      // Strategy 2: Handle common variations and synonyms
-      const searchVariations = {
-        // Bed size variations
-        'kingsize': ['kingsize', 'king size', 'king'],
-        'king size': ['kingsize', 'king size', 'king'],
-        'king': ['kingsize', 'king size', 'king'],
-        'kingsize bed': ['kingsize', 'king size', 'king'],
-        'king size bed': ['kingsize', 'king size', 'king'],
-        'king bed': ['kingsize', 'king size', 'king'],
-        
-        // Other bed sizes
-        'queensize': ['queensize', 'queen size', 'queen'],
-        'queen size': ['queensize', 'queen size', 'queen'],
-        'queen': ['queensize', 'queen size', 'queen'],
-        'single': ['single'],
-        'double': ['double'],
-        
-        // Furniture variations
-        'sofa': ['sofa', 'couch'],
-        'couch': ['sofa', 'couch'],
-        'table': ['table'],
-        'chair': ['chair'],
-        'wardrobe': ['wardrobe', 'closet'],
-        'closet': ['wardrobe', 'closet'],
-        
-        // Box variations
-        'box': ['box'],
-        'large box': ['large box'],
-        'medium box': ['medium box'],
-        'small box': ['small box'],
-        
-        // Appliance variations
-        'tv': ['television', 'tv'],
-        'television': ['television', 'tv'],
-        'fridge': ['fridge', 'refrigerator'],
-        'refrigerator': ['fridge', 'refrigerator']
-      };
-      
-      // Check variations
-      const searchVariants = searchVariations[normalizedSearch] || [normalizedSearch];
-      console.log('Search variants:', searchVariants);
-      
-      searchVariants.forEach(variant => {
-        inventoryItems.forEach(item => {
-          const itemName = item.name.toLowerCase();
-          if (itemName.includes(variant)) {
-            console.log('✅ Variant match found:', item.name, 'for variant:', variant);
-            searchResults.add(item);
-          }
-        });
-      });
-      
-      // Strategy 3: Word-by-word matching for multi-word searches
-      const searchWords = normalizedSearch.split(/\s+/).filter(word => word.length > 1);
-      console.log('Search words:', searchWords);
-      
-      if (searchWords.length > 0) {
-        inventoryItems.forEach(item => {
-          const itemName = item.name.toLowerCase();
-          const itemWords = itemName.split(/\s+/);
-          
-          let matchCount = 0;
-          searchWords.forEach(searchWord => {
-            // Check for exact word matches or partial matches
-            const hasMatch = itemWords.some(itemWord => {
-              return itemWord.includes(searchWord) || searchWord.includes(itemWord);
-            });
-            
-            if (hasMatch) {
-              matchCount++;
-            }
-          });
-          
-          // If at least 70% of search words match, include the item
-          const matchRatio = matchCount / searchWords.length;
-          if (matchRatio >= 0.7) {
-            console.log('✅ Word match found:', item.name, 'match ratio:', matchRatio);
-            searchResults.add(item);
-          }
-        });
-      }
-      
-      // Strategy 4: Fuzzy search as fallback
+      // Strategy 2: Direct substring matching (case insensitive)
       if (searchResults.size === 0) {
-        console.log('No direct matches, trying fuzzy search...');
-        const fuseResults = fuse.search(searchTerm);
-        console.log('Fuzzy search results:', fuseResults);
-        
-        fuseResults.forEach(result => {
-          if (result.score && result.score < 0.8) { // More lenient fuzzy matching
-            console.log('✅ Fuzzy match found:', result.item.name, 'score:', result.score);
-            searchResults.add(result.item);
+        inventoryItems.forEach(item => {
+          const itemName = item.name.toLowerCase();
+          if (itemName.includes(normalizedSearch)) {
+            console.log('✅ Substring match found:', item.name);
+            searchResults.add(item);
           }
         });
       }
       
-      // Strategy 5: Partial matching for single words
-      if (searchResults.size === 0 && searchWords.length === 1) {
-        const searchWord = searchWords[0];
-        if (searchWord.length >= 2) {
+      // Strategy 3: Handle common variations and synonyms
+      if (searchResults.size === 0) {
+        const searchVariations = {
+          // Bed size variations
+          'kingsize': ['kingsize bed & mattress', 'kingsize bed', 'kingsize mattress'],
+          'king size': ['kingsize bed & mattress', 'kingsize bed', 'kingsize mattress'],
+          'king': ['kingsize bed & mattress', 'kingsize bed', 'kingsize mattress'],
+          'kingsize bed': ['kingsize bed & mattress'],
+          'king size bed': ['kingsize bed & mattress'],
+          'king bed': ['kingsize bed & mattress'],
+          
+          // Other bed sizes
+          'double': ['double bed & mattress', 'double mattress', 'double wardrobe'],
+          'double bed': ['double bed & mattress'],
+          'single': ['single bed & mattress', 'single mattress', 'single wardrobe'],
+          'single bed': ['single bed & mattress'],
+          
+          // Furniture variations
+          'sofa': ['two seater sofa', 'three seater sofa', 'four seater sofa'],
+          'couch': ['two seater sofa', 'three seater sofa', 'four seater sofa'],
+          'wardrobe': ['double wardrobe', 'single wardrobe', 'triple wardrobe'],
+          'closet': ['double wardrobe', 'single wardrobe', 'triple wardrobe'],
+          'table': ['dining table', 'coffee table', 'side table', 'bedside table', 'dressing table', 'garden table'],
+          'dining table': ['4 seater dining table', '6 seater dining table'],
+          'coffee table': ['coffee table', 'round coffee table', 'glass coffee table'],
+          
+          // Chair variations
+          'chair': ['dining chair', 'office chair', 'armchair'],
+          'dining chair': ['dining chair'],
+          'office chair': ['office chair'],
+          'armchair': ['armchair'],
+          
+          // Box variations
+          'box': ['large box', 'medium box', 'small box'],
+          'large box': ['large box'],
+          'medium box': ['medium box'],
+          'small box': ['small box'],
+          
+          // Appliance variations
+          'tv': ['small television/tv', 'medium television/tv', 'large television/tv'],
+          'television': ['small television/tv', 'medium television/tv', 'large television/tv'],
+          'fridge': ['fridge', 'fridge freezer', 'american fridge freezer'],
+          'refrigerator': ['fridge', 'fridge freezer', 'american fridge freezer'],
+          'washing machine': ['washing machine'],
+          'washer': ['washing machine'],
+          'dryer': ['tumble dryer'],
+          'tumble dryer': ['tumble dryer'],
+          
+          // Mattress variations
+          'mattress': ['double mattress', 'single mattress', 'kingsize mattress'],
+          'kingsize mattress': ['kingsize mattress'],
+          'double mattress': ['double mattress'],
+          'single mattress': ['single mattress'],
+          
+          // Bag variations
+          'bag': ['large bag', 'small bag', 'shopping bags'],
+          'suitcase': ['suitcase', 'large suitcase'],
+          'shopping bags': ['shopping bags'],
+          
+          // Desk variations
+          'desk': ['desk', 'office desk', 'corner desk with pedestal'],
+          'office desk': ['office desk', 'desk'],
+          
+          // Other common items
+          'bicycle': ['bicycle'],
+          'bike': ['bicycle'],
+          'microwave': ['microwave oven'],
+          'oven': ['microwave oven', 'cooker'],
+          'cooker': ['cooker'],
+          'bookcase': ['bookcase', 'book shelf'],
+          'bookshelf': ['bookcase', 'book shelf'],
+          'book shelf': ['book shelf', 'bookcase'],
+          'sideboard': ['sideboard'],
+          'chest of drawers': ['chest of drawers'],
+          'drawers': ['chest of drawers'],
+          'rug': ['rug'],
+          'carpet': ['rug']
+        };
+        
+        // Check variations
+        const searchVariants = searchVariations[normalizedSearch] || [];
+        console.log('🔄 Checking variants for:', normalizedSearch, '→', searchVariants);
+        
+        searchVariants.forEach(variant => {
           inventoryItems.forEach(item => {
             const itemName = item.name.toLowerCase();
-            // Check if any word in the item name contains the search word
+            if (itemName === variant.toLowerCase() || itemName.includes(variant.toLowerCase())) {
+              console.log('✅ Variant match found:', item.name, 'for variant:', variant);
+              searchResults.add(item);
+            }
+          });
+        });
+      }
+      
+      // Strategy 4: Word-by-word matching for multi-word searches
+      if (searchResults.size === 0) {
+        const searchWords = normalizedSearch.split(/\s+/).filter(word => word.length > 1);
+        console.log('🔤 Word matching for:', searchWords);
+        
+        if (searchWords.length > 0) {
+          inventoryItems.forEach(item => {
+            const itemName = item.name.toLowerCase();
             const itemWords = itemName.split(/\s+/);
-            const hasPartialMatch = itemWords.some(word => 
-              word.includes(searchWord) || searchWord.includes(word)
-            );
             
-            if (hasPartialMatch) {
-              console.log('✅ Partial match found:', item.name);
+            let matchCount = 0;
+            searchWords.forEach(searchWord => {
+              // Check for exact word matches or partial matches
+              const hasMatch = itemWords.some(itemWord => {
+                return itemWord.includes(searchWord) || searchWord.includes(itemWord);
+              });
+              
+              if (hasMatch) {
+                matchCount++;
+              }
+            });
+            
+            // If at least 60% of search words match, include the item
+            const matchRatio = matchCount / searchWords.length;
+            if (matchRatio >= 0.6) {
+              console.log('✅ Word match found:', item.name, 'match ratio:', matchRatio);
               searchResults.add(item);
             }
           });
         }
       }
       
-      console.log('Total matches found:', searchResults.size);
+      // Strategy 5: Fuzzy search as fallback (only if no other matches)
+      if (searchResults.size === 0) {
+        console.log('🔍 No direct matches, trying fuzzy search...');
+        const fuseResults = fuse.search(searchTerm);
+        console.log('Fuzzy search results:', fuseResults);
+        
+        fuseResults.forEach(result => {
+          if (result.score && result.score < 0.6) { // Strict fuzzy matching
+            console.log('✅ Fuzzy match found:', result.item.name, 'score:', result.score);
+            searchResults.add(result.item);
+          }
+        });
+      }
+      
+      // Strategy 6: Partial matching for single words (very lenient, last resort)
+      if (searchResults.size === 0 && normalizedSearch.length >= 3) {
+        console.log('🔍 Trying partial matching...');
+        inventoryItems.forEach(item => {
+          const itemName = item.name.toLowerCase();
+          // Check if any word in the item name contains the search word
+          const itemWords = itemName.split(/\s+/);
+          const hasPartialMatch = itemWords.some(word => 
+            word.includes(normalizedSearch) || normalizedSearch.includes(word)
+          );
+          
+          if (hasPartialMatch) {
+            console.log('✅ Partial match found:', item.name);
+            searchResults.add(item);
+          }
+        });
+      }
+      
+      console.log(`📊 Database search complete: ${searchResults.size} matches found`);
       
       // Convert Set back to Array and sort by relevance
       const combinedResults = Array.from(searchResults);
