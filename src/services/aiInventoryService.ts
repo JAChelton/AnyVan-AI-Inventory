@@ -210,7 +210,7 @@ class AIInventoryService {
     return 'misc';
   }
 
-  private estimateRealisticWeight(itemText: string): number {
+  private estimateRealisticWeight = (itemText: string): number => {
     const lowerText = itemText.toLowerCase();
     let baseWeight = 20;
     
