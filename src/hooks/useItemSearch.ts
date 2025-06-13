@@ -175,58 +175,80 @@ export const useItemSearch = () => {
         }
       }
       
-      // Strategy 5: Generate "Did you mean?" suggestions only if no matches found
-      if (searchResults.size === 0) {
-        console.log('🔍 No matches found, generating suggestions...');
+      // Strategy 5: Generate "Did you mean?" suggestions ONLY if no matches found AND search term is meaningful
+      if (searchResults.size === 0 && normalizedSearch.length >= 3) {
+        console.log('🔍 No matches found, generating relevant suggestions...');
         
-        // Only suggest items that are actually similar to the search term
         const relevantSuggestions = new Set<string>();
+        const searchWords = normalizedSearch.split(/\s+/).filter(word => word.length >= 3);
         
-        // Check for partial word matches that could be suggestions
-        const searchWords = normalizedSearch.split(/\s+/).filter(word => word.length >= 2);
-        
-        inventoryItems.forEach(item => {
-          const itemName = item.name.toLowerCase();
-          const itemWords = itemName.split(/\s+/);
-          
-          // Check if any search word partially matches any item word
-          let hasRelevantMatch = false;
-          
-          searchWords.forEach(searchWord => {
-            itemWords.forEach(itemWord => {
-              // Check for partial matches (at least 3 characters in common)
-              if (searchWord.length >= 3 && itemWord.length >= 3) {
-                if (itemWord.includes(searchWord.substring(0, 3)) || 
-                    searchWord.includes(itemWord.substring(0, 3))) {
-                  hasRelevantMatch = true;
-                }
-              }
+        // Only generate suggestions if the search term has meaningful content
+        if (searchWords.length > 0) {
+          // Check for items that share significant character sequences with the search term
+          inventoryItems.forEach(item => {
+            const itemName = item.name.toLowerCase();
+            let relevanceScore = 0;
+            
+            // Check each search word against each word in the item name
+            searchWords.forEach(searchWord => {
+              const itemWords = itemName.split(/\s+/);
               
-              // Check for similar starting letters
-              if (searchWord.length >= 2 && itemWord.length >= 2) {
-                if (searchWord.substring(0, 2) === itemWord.substring(0, 2)) {
-                  hasRelevantMatch = true;
+              itemWords.forEach(itemWord => {
+                // Calculate character overlap
+                let overlapCount = 0;
+                const minLength = Math.min(searchWord.length, itemWord.length);
+                
+                // Check for common starting characters
+                for (let i = 0; i < minLength; i++) {
+                  if (searchWord[i] === itemWord[i]) {
+                    overlapCount++;
+                  } else {
+                    break;
+                  }
                 }
-              }
+                
+                // Check for substring matches
+                if (itemWord.includes(searchWord) || searchWord.includes(itemWord)) {
+                  overlapCount += 2;
+                }
+                
+                // Check for similar character patterns
+                if (overlapCount >= 3 || (overlapCount >= 2 && minLength <= 4)) {
+                  relevanceScore += overlapCount;
+                }
+              });
             });
+            
+            // Only suggest items with meaningful relevance to the search term
+            if (relevanceScore >= 3) {
+              relevantSuggestions.add(item.name);
+            }
           });
           
-          if (hasRelevantMatch) {
-            relevantSuggestions.add(item.name);
-          }
-        });
-        
-        // Also use fuzzy search for suggestions, but only if they're actually relevant
-        const fuseResults = fuse.search(searchTerm);
-        fuseResults.forEach(result => {
-          if (result.score && result.score < 0.7) { // More lenient for suggestions
-            relevantSuggestions.add(result.item.name);
-          }
-        });
+          // Also use fuzzy search but with stricter relevance criteria
+          const fuseResults = fuse.search(normalizedSearch);
+          fuseResults.forEach(result => {
+            if (result.score && result.score < 0.6) { // Stricter threshold
+              const itemName = result.item.name.toLowerCase();
+              
+              // Additional relevance check - ensure the suggestion actually relates to the search
+              let hasRelevantConnection = false;
+              searchWords.forEach(searchWord => {
+                if (itemName.includes(searchWord.substring(0, Math.min(3, searchWord.length)))) {
+                  hasRelevantConnection = true;
+                }
+              });
+              
+              if (hasRelevantConnection) {
+                relevantSuggestions.add(result.item.name);
+              }
+            }
+          });
+        }
         
         // Convert to array and limit to 3 most relevant suggestions
         didYouMeanSuggestions = Array.from(relevantSuggestions).slice(0, 3);
-        console.log('💡 Generated suggestions:', didYouMeanSuggestions);
+        console.log('💡 Generated relevant suggestions:', didYouMeanSuggestions);
       }
       
       console.log(`📊 Database search complete: ${searchResults.size} matches found`);
