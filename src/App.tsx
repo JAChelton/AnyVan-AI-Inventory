@@ -147,11 +147,8 @@ function App() {
               </p>
             </div>
 
-            {/* Show "Did you mean?" suggestions only when there are relevant suggestions */}
-            {suggestions.length > 0 && filteredItems.length === 0 && searchTerm.length >= 3 && 
- suggestions.some(suggestion => 
-   suggestion.toLowerCase().includes(searchTerm.toLowerCase().substring(0, 3))
- ) && (
+            {/* FIXED: Only show suggestions when user has typed something AND no results found */}
+            {suggestions.length > 0 && filteredItems.length === 0 && searchTerm.trim().length >= 3 && (
               <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800 mb-2">Did you mean?</p>
                 <div className="flex flex-wrap gap-2">
