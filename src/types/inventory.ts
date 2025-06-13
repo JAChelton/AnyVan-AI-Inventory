@@ -1,4 +1,5 @@
-// src/constants/inventory.ts
+// src/constants/inventory.ts - Place this file in your project
+// This replaces the magic numbers scattered throughout your codebase
 export const INVENTORY_CONSTANTS = {
   TIMEOUTS: {
     WEB_SEARCH: 10000,
