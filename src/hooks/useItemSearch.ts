@@ -53,81 +53,25 @@ export const useItemSearch = () => {
       
       // Strategy 3: Handle common variations and synonyms
       if (searchResults.size === 0) {
-        const searchVariations = {
-          // Bed size variations
-          'kingsize': ['kingsize bed & mattress', 'kingsize bed', 'kingsize mattress'],
-          'king size': ['kingsize bed & mattress', 'kingsize bed', 'kingsize mattress'],
-          'king': ['kingsize bed & mattress', 'kingsize bed', 'kingsize mattress'],
-          'kingsize bed': ['kingsize bed & mattress'],
-          'king size bed': ['kingsize bed & mattress'],
-          'king bed': ['kingsize bed & mattress'],
-          
-          // Other bed sizes
-          'double': ['double bed & mattress', 'double mattress', 'double wardrobe'],
-          'double bed': ['double bed & mattress'],
-          'single': ['single bed & mattress', 'single mattress', 'single wardrobe'],
-          'single bed': ['single bed & mattress'],
-          
-          // Furniture variations
-          'sofa': ['two seater sofa', 'three seater sofa', 'four seater sofa'],
-          'couch': ['two seater sofa', 'three seater sofa', 'four seater sofa'],
-          'wardrobe': ['double wardrobe', 'single wardrobe', 'triple wardrobe'],
-          'closet': ['double wardrobe', 'single wardrobe', 'triple wardrobe'],
-          'table': ['dining table', 'coffee table', 'side table', 'bedside table', 'dressing table', 'garden table'],
-          'dining table': ['4 seater dining table', '6 seater dining table'],
-          'coffee table': ['coffee table', 'round coffee table', 'glass coffee table'],
-          
-          // Chair variations
-          'chair': ['dining chair', 'office chair', 'armchair'],
-          'dining chair': ['dining chair'],
-          'office chair': ['office chair'],
-          'armchair': ['armchair'],
-          
-          // Box variations
-          'box': ['large box', 'medium box', 'small box'],
-          'large box': ['large box'],
-          'medium box': ['medium box'],
-          'small box': ['small box'],
-          
-          // Appliance variations
-          'tv': ['small television/tv', 'medium television/tv', 'large television/tv'],
-          'television': ['small television/tv', 'medium television/tv', 'large television/tv'],
-          'fridge': ['fridge', 'fridge freezer', 'american fridge freezer'],
-          'refrigerator': ['fridge', 'fridge freezer', 'american fridge freezer'],
-          'washing machine': ['washing machine'],
-          'washer': ['washing machine'],
-          'dryer': ['tumble dryer'],
-          'tumble dryer': ['tumble dryer'],
-          
-          // Mattress variations
-          'mattress': ['double mattress', 'single mattress', 'kingsize mattress'],
-          'kingsize mattress': ['kingsize mattress'],
-          'double mattress': ['double mattress'],
-          'single mattress': ['single mattress'],
-          
-          // Bag variations
-          'bag': ['large bag', 'small bag', 'shopping bags'],
-          'suitcase': ['suitcase', 'large suitcase'],
-          'shopping bags': ['shopping bags'],
-          
-          // Desk variations
-          'desk': ['desk', 'office desk', 'corner desk with pedestal'],
-          'office desk': ['office desk', 'desk'],
-          
-          // Other common items
-          'bicycle': ['bicycle'],
-          'bike': ['bicycle'],
-          'microwave': ['microwave oven'],
-          'oven': ['microwave oven', 'cooker'],
-          'cooker': ['cooker'],
-          'bookcase': ['bookcase', 'book shelf'],
-          'bookshelf': ['bookcase', 'book shelf'],
-          'book shelf': ['book shelf', 'bookcase'],
-          'sideboard': ['sideboard'],
-          'chest of drawers': ['chest of drawers'],
-          'drawers': ['chest of drawers'],
-          'rug': ['rug'],
-          'carpet': ['rug']
+        const searchVariations: { [key: string]: string[] } = {
+          'sofa': ['sofa', 'couch', 'settee'],
+          'couch': ['sofa', 'couch', 'settee'],
+          'settee': ['sofa', 'couch', 'settee'],
+          'chair': ['chair', 'seat'],
+          'table': ['table', 'desk'],
+          'desk': ['table', 'desk'],
+          'bed': ['bed', 'mattress'],
+          'mattress': ['bed', 'mattress'],
+          'wardrobe': ['wardrobe', 'closet'],
+          'closet': ['wardrobe', 'closet'],
+          'drawer': ['drawer', 'chest'],
+          'chest': ['drawer', 'chest'],
+          'tv': ['tv', 'television'],
+          'television': ['tv', 'television'],
+          'box': ['box', 'container'],
+          'container': ['box', 'container'],
+          'rug': ['rug', 'carpet'],
+          'carpet': ['rug', 'carpet']
         };
         
         // Check variations
