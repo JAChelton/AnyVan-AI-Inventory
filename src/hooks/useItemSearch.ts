@@ -51,13 +51,43 @@ export const useItemSearch = () => {
         });
       }
       
-      // Strategy 3: Handle common variations and synonyms
+      // Strategy 3: Smart word matching for quantity + item combinations
+      if (searchResults.size === 0) {
+        // Extract quantity and item from search (e.g., "6 dining chairs" -> "dining chairs")
+        const quantityMatch = normalizedSearch.match(/^(\d+)\s+(.+)$/);
+        if (quantityMatch) {
+          const itemPart = quantityMatch[2];
+          console.log('🔢 Extracted item part from quantity search:', itemPart);
+          
+          inventoryItems.forEach(item => {
+            const itemName = item.name.toLowerCase();
+            
+            // Check if the item part matches the item name
+            if (itemName.includes(itemPart) || itemPart.includes(itemName)) {
+              console.log('✅ Quantity-based match found:', item.name);
+              searchResults.add(item);
+            }
+            
+            // Handle plurals - check singular forms
+            const singularItemPart = itemPart.replace(/s$/, ''); // Simple plural handling
+            if (itemName.includes(singularItemPart) || singularItemPart.includes(itemName)) {
+              console.log('✅ Singular form match found:', item.name);
+              searchResults.add(item);
+            }
+          });
+        }
+      }
+      
+      // Strategy 4: Handle common variations and synonyms
       if (searchResults.size === 0) {
         const searchVariations: { [key: string]: string[] } = {
           'sofa': ['sofa', 'couch', 'settee'],
           'couch': ['sofa', 'couch', 'settee'],
           'settee': ['sofa', 'couch', 'settee'],
           'chair': ['chair', 'seat'],
+          'chairs': ['chair', 'seat'],
+          'dining chair': ['dining chair', 'chair'],
+          'dining chairs': ['dining chair', 'chair'],
           'table': ['table', 'desk'],
           'desk': ['table', 'desk'],
           'bed': ['bed', 'mattress'],
@@ -89,7 +119,7 @@ export const useItemSearch = () => {
         });
       }
       
-      // Strategy 4: Word-by-word matching for multi-word searches
+      // Strategy 5: Word-by-word matching for multi-word searches
       if (searchResults.size === 0) {
         const searchWords = normalizedSearch.split(/\s+/).filter(word => word.length > 1);
         console.log('🔤 Word matching for:', searchWords);
@@ -101,6 +131,9 @@ export const useItemSearch = () => {
             
             let matchCount = 0;
             searchWords.forEach(searchWord => {
+              // Skip numbers when doing word matching
+              if (/^\d+$/.test(searchWord)) return;
+              
               const hasMatch = itemWords.some(itemWord => {
                 return itemWord.includes(searchWord) || searchWord.includes(itemWord);
               });
@@ -110,7 +143,9 @@ export const useItemSearch = () => {
               }
             });
             
-            const matchRatio = matchCount / searchWords.length;
+            const nonNumericWords = searchWords.filter(word => !/^\d+$/.test(word));
+            const matchRatio = nonNumericWords.length > 0 ? matchCount / nonNumericWords.length : 0;
+            
             if (matchRatio >= 0.6) {
               console.log('✅ Word match found:', item.name, 'match ratio:', matchRatio);
               searchResults.add(item);
@@ -119,12 +154,20 @@ export const useItemSearch = () => {
         }
       }
       
-      // Strategy 5: Generate "Did you mean?" suggestions ONLY if no matches found AND search term is meaningful
+      // Strategy 6: Generate "Did you mean?" suggestions ONLY if no matches found AND search is relevant
       if (searchResults.size === 0 && normalizedSearch.length >= 3) {
         console.log('🔍 No matches found, generating relevant suggestions...');
         
         const relevantSuggestions = new Set<string>();
-        const searchWords = normalizedSearch.split(/\s+/).filter(word => word.length >= 3);
+        
+        // Extract the main item part (remove quantities)
+        let searchForSuggestions = normalizedSearch;
+        const quantityMatch = normalizedSearch.match(/^(\d+)\s+(.+)$/);
+        if (quantityMatch) {
+          searchForSuggestions = quantityMatch[2];
+        }
+        
+        const searchWords = searchForSuggestions.split(/\s+/).filter(word => word.length >= 3);
         
         // Only generate suggestions if the search term has meaningful content
         if (searchWords.length > 0) {
@@ -153,7 +196,7 @@ export const useItemSearch = () => {
                 
                 // Check for substring matches
                 if (itemWord.includes(searchWord) || searchWord.includes(itemWord)) {
-                  overlapCount += 2;
+                  overlapCount += 3;
                 }
                 
                 // Check for similar character patterns
@@ -164,15 +207,15 @@ export const useItemSearch = () => {
             });
             
             // Only suggest items with meaningful relevance to the search term
-            if (relevanceScore >= 3) {
+            if (relevanceScore >= 4) {
               relevantSuggestions.add(item.name);
             }
           });
           
           // Also use fuzzy search but with stricter relevance criteria
-          const fuseResults = fuse.search(normalizedSearch);
+          const fuseResults = fuse.search(searchForSuggestions);
           fuseResults.forEach(result => {
-            if (result.score && result.score < 0.6) { // Stricter threshold
+            if (result.score && result.score < 0.5) { // Stricter threshold
               const itemName = result.item.name.toLowerCase();
               
               // Additional relevance check - ensure the suggestion actually relates to the search
@@ -205,18 +248,25 @@ export const useItemSearch = () => {
         const aName = a.name.toLowerCase();
         const bName = b.name.toLowerCase();
         
-        const aExact = aName === normalizedSearch;
-        const bExact = bName === normalizedSearch;
+        // Extract item part for comparison (remove quantities)
+        let searchForComparison = normalizedSearch;
+        const quantityMatch = normalizedSearch.match(/^(\d+)\s+(.+)$/);
+        if (quantityMatch) {
+          searchForComparison = quantityMatch[2];
+        }
+        
+        const aExact = aName === searchForComparison;
+        const bExact = bName === searchForComparison;
         if (aExact && !bExact) return -1;
         if (!aExact && bExact) return 1;
         
-        const aContains = aName.includes(normalizedSearch);
-        const bContains = bName.includes(normalizedSearch);
+        const aContains = aName.includes(searchForComparison);
+        const bContains = bName.includes(searchForComparison);
         if (aContains && !bContains) return -1;
         if (!aContains && bContains) return 1;
         
-        const aStarts = aName.startsWith(normalizedSearch);
-        const bStarts = bName.startsWith(normalizedSearch);
+        const aStarts = aName.startsWith(searchForComparison);
+        const bStarts = bName.startsWith(searchForComparison);
         if (aStarts && !bStarts) return -1;
         if (!aStarts && bStarts) return 1;
         
