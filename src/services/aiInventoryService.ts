@@ -111,6 +111,22 @@ class AIInventoryService {
     }
   }
 
+  // Missing method that frontend is calling
+  async generateAIItem(itemText: string): Promise<AIGeneratedItem | null> {
+    try {
+      const lookupResult = await this.performWebLookup(itemText);
+      
+      if (lookupResult) {
+        return this.createAIItem(lookupResult, itemText);
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error generating AI item:', error);
+      return null;
+    }
+  }
+
   // Execute lookup strategies in order of preference
   private async executeLookupStrategies(itemText: string): Promise<WebLookupResult | null> {
     const strategies = [
