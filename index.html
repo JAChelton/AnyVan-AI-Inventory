@@ -948,7 +948,7 @@ async searchWikipediaReal(itemText) {
                 if (weight || extract.length > 100) {
                     return {
                         name: this.capitalizeWords(itemText),
-                        weight: weight || this.estimateRealisticWeight(itemText),
+                        weight: weight || this.estimateWeight(itemText),
                         dimensions: dimensions,
                         category: category,
                         confidence: weight ? 0.90 : 0.75,
